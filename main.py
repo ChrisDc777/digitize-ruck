@@ -12,6 +12,13 @@ import ast
 from typing import List, Dict
 from dotenv import load_dotenv
 
+
+from pydantic import BaseModel
+from typing import List, Optional, Dict, Any
+
+from simple_salesforce import Salesforce
+import snowflake.connector
+
 # Load environment variables from .env file (if using)
 load_dotenv()
 
@@ -221,3 +228,165 @@ async def extract_prescriptions(files: List[UploadFile]):
             )  # Add error with filename
 
     return JSONResponse(content=all_results)
+
+GOOGLE_API_KEY_V2= os.environ.get("GOOGLE_API_KEY_V2")
+genai.configure(api_key=GOOGLE_API_KEY_V2)
+model = genai.GenerativeModel(model_name="gemini-1.5-flash")
+
+# --- Salesforce Configuration ---
+SALESFORCE_USERNAME = "godcares.ndubuisi.btech2021878@agentforce.com"
+SALESFORCE_PASSWORD = "good@1234"
+SALESFORCE_SECURITY_TOKEN = "tMaMITpwIoMwpuRU9Gk9tz2a"
+SALESFORCE_SOQL_QUERY = "SELECT Patient_Name__c, Medication_Name__c, Instructions__c, Medication_Dosage__c FROM Symbi_Pharmacy__c"
+
+
+# --- Snowflake Configuration ---
+SNOWFLAKE_USER = "GODCARES"
+SNOWFLAKE_PASSWORD = "meowCrack it@1011"
+SNOWFLAKE_ACCOUNT = "UOKKATU-VK33181"
+SNOWFLAKE_SQL_QUERY = "SELECT * FROM COMPANY_PHARMACY.DETAIL.PRESCRIPTIONS;"
+
+
+# --- Data Models ---
+class QueryInput(BaseModel):
+    user_query: str
+
+
+# --- Salesforce Integration ---
+def connect_salesforce():
+    try:
+        sf = Salesforce(
+            username=SALESFORCE_USERNAME,
+            password=SALESFORCE_PASSWORD,
+            security_token=SALESFORCE_SECURITY_TOKEN,
+        )
+        return sf
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Salesforce Authentication Error: {e}"
+        )
+
+
+def query_salesforce(sf: Salesforce) -> List[Dict[str, Any]]:
+    """Execute a SOQL query and return results as a list of dictionaries."""
+    try:
+        result = sf.query_all(SALESFORCE_SOQL_QUERY)
+        records = result.get("records", [])
+        return records  # Return the records directly as a list of dicts
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Salesforce Query Error: {e}")
+
+
+@app.post("/salesforce/")
+async def get_salesforce_data(query_input: QueryInput):
+    """
+    Fetches data from Salesforce based on a predefined SOQL query and processes
+    it using Gemini, based on the user's input query.
+    """
+    sf = connect_salesforce()
+    data = query_salesforce(sf)
+
+    if not data:
+        raise HTTPException(
+            status_code=404, detail="No data retrieved from Salesforce."
+        )
+
+    formatted_data = "\n".join([str(item) for item in data])
+
+    final_prompt = f"""
+    {query_input.user_query}
+
+    Respond ONLY with the exact answer. STRICTLY DO NOT INCLUDE ANYTHING ELSE.
+    Be direct and to the point. NO extra words, NO emojis, NO irrelevant text.
+
+    If the answer requires a structured response, use numbering or bullet points. Otherwise, respond in a concise paragraph.
+
+    If the question CANNOT be answered based on the provided data, respond ONLY with:
+    'I cannot answer this question because the required data is not available in the Salesforce database.'
+
+    Data for Analysis:
+    {formatted_data}
+    """
+
+    try:
+        response = model.generate_content(final_prompt)
+        return {"response": response.text}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error communicating with Gemini: {e}"
+        )
+
+
+# --- Snowflake Integration ---
+def connect_snowflake():
+    try:
+        conn = snowflake.connector.connect(
+            user=SNOWFLAKE_USER,
+            password=SNOWFLAKE_PASSWORD,
+            account=SNOWFLAKE_ACCOUNT,
+        )
+        return conn
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Snowflake Connection Error: {e}"
+        )
+
+
+def query_snowflake(conn: snowflake.connector.SnowflakeConnection) -> List[Dict[str, Any]]:
+    """Execute a SQL query and return results as a list of dictionaries."""
+    try:
+        with conn.cursor() as cur:
+            cur.execute(SNOWFLAKE_SQL_QUERY)
+            columns = [desc[0] for desc in cur.description]  # Fetch column names
+            rows = cur.fetchall()
+
+            # Convert each row into a dictionary
+            results = []
+            for row in rows:
+                row_dict = dict(zip(columns, row))
+                results.append(row_dict)  # Append dictionaries directly
+
+            return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Snowflake Query Error: {e}")
+    finally:
+        cur.close()  # Ensure cursor is closed after execution
+
+@app.post("/snowflake/")
+async def get_snowflake_data(query_input: QueryInput):
+    """
+    Fetches data from Snowflake based on a predefined SQL query and processes it using Gemini, based on the user's input query.
+    """
+    conn = connect_snowflake()
+    try:
+        data = query_snowflake(conn)
+
+        if not data:
+            raise HTTPException(
+                status_code=404, detail="No data retrieved from Snowflake."
+            )
+
+        formatted_data = "\n".join([str(item) for item in data])
+
+        final_prompt = f"""
+        {query_input.user_query}
+
+        Respond ONLY with the exact answer. STRICTLY DO NOT INCLUDE ANYTHING ELSE.
+        Be direct and to the point. NO extra words, NO emojis, NO irrelevant text.
+
+        If the question CANNOT be answered based on the provided data, respond ONLY with:
+        'I cannot answer this question because the required data is not available in the snowflake database.'
+
+        Data for Analysis:
+        {formatted_data}
+        """
+
+        try:
+            response = model.generate_content(final_prompt)
+            return {"response": response.text}
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"Error communicating with Gemini: {e}"
+            )
+    finally:
+        conn.close()
