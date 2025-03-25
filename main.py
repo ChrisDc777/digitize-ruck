@@ -19,6 +19,13 @@ from typing import List, Optional, Dict, Any
 from simple_salesforce import Salesforce
 import snowflake.connector
 
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import time
+
 # Load environment variables from .env file (if using)
 load_dotenv()
 
@@ -390,3 +397,252 @@ async def get_snowflake_data(query_input: QueryInput):
             )
     finally:
         conn.close()
+
+# --- Upload Salesforce API ---
+
+class Credentials(BaseModel):
+    username: str
+    password: str
+    task_name: str
+
+def run_part_1_snowflake(username, password):
+    try:
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+
+        driver = webdriver.Chrome(options=chrome_options)
+        driver.set_window_size(1920, 1080)
+        wait = WebDriverWait(driver, 30)
+
+        driver.get("https://dm-us.informaticacloud.com/identity-service/home")
+
+        username_div = wait.until(EC.visibility_of_element_located((By.ID, "username")))
+        username_input = username_div.find_element(By.TAG_NAME, "input")
+        username_input.clear()
+        username_input.send_keys(username)
+
+        password_div = wait.until(EC.visibility_of_element_located((By.ID, "password")))
+        password_input = password_div.find_element(By.TAG_NAME, "input")
+        password_input.clear()
+        password_input.send_keys(password)
+
+        login_button = wait.until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, ".submitBtn.loginBtn.ui-infa-button-emphasized button"))
+        )
+
+        try:
+            login_button.click()
+            wait.until(EC.visibility_of_element_located((By.ID, "root")))
+        except Exception as e:
+            driver.quit()
+            raise HTTPException(status_code=400, detail="Incorrect Username or Password")
+
+        fi_task_url = "https://usw5.dm-us.informaticacloud.com/diUI/products/integrationDesign/main/fiTask/3wXTuKQq6DmcgOVgxPdU4l/edit"
+        driver.get(fi_task_url)
+
+        time.sleep(200)
+
+        try:
+            run_button = wait.until(
+                EC.element_to_be_clickable((
+                    By.XPATH,
+                    "//button[contains(@class, 'd-button--call-to-action')]//span[text()='Run']/.."
+                ))
+            )
+
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", run_button)
+            driver.execute_script("arguments[0].click();", run_button)
+
+        except Exception as e:
+            driver.quit()
+            raise HTTPException(status_code=500, detail=f"Error interacting with Run button: {str(e)}")
+
+        finally:
+            driver.quit()
+
+        return {"status": "Success"}
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Part 1 failed: {str(e)}")
+
+def run_part_1_salesforce(username, password):
+    try:
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+
+        driver = webdriver.Chrome(options=chrome_options)
+        driver.set_window_size(1920, 1080)
+        wait = WebDriverWait(driver, 30)
+
+        driver.get("https://dm-us.informaticacloud.com/identity-service/home")
+
+        username_div = wait.until(EC.visibility_of_element_located((By.ID, "username")))
+        username_input = username_div.find_element(By.TAG_NAME, "input")
+        username_input.clear()
+        username_input.send_keys(username)
+
+        password_div = wait.until(EC.visibility_of_element_located((By.ID, "password")))
+        password_input = password_div.find_element(By.TAG_NAME, "input")
+        password_input.clear()
+        password_input.send_keys(password)
+
+        login_button = wait.until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, ".submitBtn.loginBtn.ui-infa-button-emphasized button"))
+        )
+
+        try:
+            login_button.click()
+            wait.until(EC.visibility_of_element_located((By.ID, "root")))
+        except Exception as e:
+            driver.quit()
+            raise HTTPException(status_code=400, detail="Incorrect Username or Password")
+
+        fi_task_url = "https://usw5.dm-us.informaticacloud.com/diUI/products/integrationDesign/main/mapping/6LisynXT7sggmHH7EWvl0L/edit"
+        driver.get(fi_task_url)
+
+        time.sleep(200)
+
+        try:
+            run_button = wait.until(
+                EC.element_to_be_clickable((
+                    By.XPATH,
+                    "//button[contains(@class, 'infaButton') and contains(@class, 'infaButton-1') and .//span[text()='Run']]"
+                ))
+            )
+
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", run_button)
+            time.sleep(5)
+            driver.execute_script("arguments[0].click();", run_button)
+            time.sleep(5)
+
+        except Exception as e:
+            driver.quit()
+            raise HTTPException(status_code=500, detail=f"Error interacting with Run button: {str(e)}")
+
+        finally:
+            driver.quit()
+
+        return {"status": "Success"}
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Part 1 failed: {str(e)}")
+
+
+def run_part_2(username, password, task_name):
+    try:
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+
+        driver = webdriver.Chrome(options=chrome_options)
+        driver.set_window_size(1920, 1080)
+        wait = WebDriverWait(driver, 30)
+
+        driver.get("https://dm-us.informaticacloud.com/identity-service/home")
+
+        username_div = wait.until(EC.visibility_of_element_located((By.ID, "username")))
+        username_input = username_div.find_element(By.TAG_NAME, "input")
+        username_input.clear()
+        username_input.send_keys(username)
+
+        password_div = wait.until(EC.visibility_of_element_located((By.ID, "password")))
+        password_input = password_div.find_element(By.TAG_NAME, "input")
+        password_input.clear()
+        password_input.send_keys(password)
+
+        login_button = wait.until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, ".submitBtn.loginBtn.ui-infa-button-emphasized button"))
+        )
+
+        try:
+            login_button.click()
+            wait.until(EC.visibility_of_element_located((By.ID, "root")))
+        except Exception as e:
+            driver.quit()
+            raise HTTPException(status_code=400, detail="Incorrect Username or Password")
+
+        monitoring_url = "https://usw5.dm-us.informaticacloud.com/diUI/products/integrationDesign/main/MonitorJobs"
+        status_found = False
+        start_time = time.time()
+        timeout = 1800
+        poll_interval = 15
+        task_xpath = f"//span[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{task_name.lower()}')]"
+
+        print("Started while")
+        while (time.time() - start_time) < timeout and not status_found:
+            try:
+                driver.get(monitoring_url)
+
+                task_element = wait.until(
+                    EC.visibility_of_element_located((By.XPATH, task_xpath))
+                )
+
+                row = task_element.find_element(By.XPATH, "./ancestor::div[contains(@role, 'row')]")
+                status_element = row.find_element(
+                    By.XPATH, ".//img[contains(@class, 'job-status-icon')]/following-sibling::span"
+                )
+                current_status = status_element.text.strip().lower()
+
+                if current_status in ["success", "failed"]:
+                    status_found = True
+                    break
+                else:
+                    time.sleep(poll_interval)
+
+            except Exception as e:
+                time.sleep(poll_interval)
+                continue
+
+        driver.quit()
+
+        if not status_found:
+            return {"final_status": "Timeout: Status check exceeded 30 minutes"}
+        else:
+            return {"final_status": current_status}
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        driver.quit()
+        raise HTTPException(status_code=500, detail=f"Part 2 failed: {str(e)}")
+
+
+@app.post("/upload_to_snowflake")
+async def upload_to_snowflake(credentials: Credentials):
+    try:
+        part1_result = run_part_1_snowflake(credentials.username, credentials.password)
+        if part1_result["status"] == "Success":
+            print("Part 1 success")
+            part2_result = run_part_2(credentials.username, credentials.password, credentials.task_name)
+            return {"part1_status": "Success", "part2_status": part2_result}
+        else:
+            raise HTTPException(status_code=500, detail="Part 1 failed")
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/upload_to_salesforce")
+async def upload_to_salesforce(credentials: Credentials):
+    try:
+        part1_result = run_part_1_salesforce(credentials.username, credentials.password)
+        
+        if part1_result["status"] == "Success":
+            print("Part 1 success")
+            part2_result = run_part_2(credentials.username, credentials.password, credentials.task_name)
+            return {"part1_status": "Success", "part2_status": part2_result}
+        else:
+            raise HTTPException(status_code=500, detail="Part 1 failed")
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
