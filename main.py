@@ -421,9 +421,10 @@ def run_part_1_snowflake(username, password):
         options.add_argument('--disable-gpu')
         
         driver = webdriver.Chrome(options=options)
-        driver.set_page_load_timeout(90)
+        driver.set_page_load_timeout(120)
+
         driver.set_window_size(1920, 1080)
-        wait = WebDriverWait(driver, 30)
+        wait = WebDriverWait(driver, 60)
 
         driver.get("https://dm-us.informaticacloud.com/identity-service/home")
 
@@ -490,10 +491,10 @@ def run_part_1_salesforce(username, password):
         options.add_argument('--disable-gpu')
         
         driver = webdriver.Chrome(options=options)
-        driver.set_page_load_timeout(90)
+        driver.set_page_load_timeout(120)
 
         driver.set_window_size(1920, 1080)
-        wait = WebDriverWait(driver, 30)
+        wait = WebDriverWait(driver, 60)
 
         driver.get("https://dm-us.informaticacloud.com/identity-service/home")
 
@@ -563,10 +564,10 @@ def run_part_2(username, password, task_name):
         options.add_argument('--disable-gpu')
         
         driver = webdriver.Chrome(options=options)
-        driver.set_page_load_timeout(90)
+        driver.set_page_load_timeout(120)
 
         driver.set_window_size(1920, 1080)
-        wait = WebDriverWait(driver, 30)
+        wait = WebDriverWait(driver, 60)
 
         driver.get("https://dm-us.informaticacloud.com/identity-service/home")
 
