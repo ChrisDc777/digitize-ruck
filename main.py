@@ -28,7 +28,7 @@ import time
 
 # Import for Chrome service
 from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
+# from webdriver_manager.chrome import ChromeDriverManager
 
 # Load environment variables from .env file (if using)
 load_dotenv()
@@ -564,7 +564,7 @@ def run_part_2(username, password, task_name):
         
         driver = webdriver.Chrome(options=options)
         driver.set_page_load_timeout(90)
-        
+
         driver.set_window_size(1920, 1080)
         wait = WebDriverWait(driver, 30)
 
