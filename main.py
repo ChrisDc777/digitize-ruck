@@ -411,16 +411,17 @@ class Credentials(BaseModel):
 
 def run_part_1_snowflake(username, password):
     try:
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-
-        # Automatically manage ChromeDriver using webdriver-manager
-        service = Service(ChromeDriverManager().install())
-        # Set window size to typical laptop resolution
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-
+        # Set up the Selenium WebDriver
+        options = webdriver.ChromeOptions()
+        options.add_argument('--no-sandbox')
+        options.add_argument('--headless')
+        options.add_argument('--ignore-certificate-errors')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-extensions')
+        options.add_argument('--disable-gpu')
+        
+        driver = webdriver.Chrome(options=options)
+        driver.set_page_load_timeout(90)
         driver.set_window_size(1920, 1080)
         wait = WebDriverWait(driver, 30)
 
@@ -479,15 +480,17 @@ def run_part_1_snowflake(username, password):
 
 def run_part_1_salesforce(username, password):
     try:
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-
-        # Automatically manage ChromeDriver using webdriver-manager
-        service = Service(ChromeDriverManager().install())
-        # Set window size to typical laptop resolution
-        driver = webdriver.Chrome(service=service, options=chrome_options)
+        # Set up the Selenium WebDriver
+        options = webdriver.ChromeOptions()
+        options.add_argument('--no-sandbox')
+        options.add_argument('--headless')
+        options.add_argument('--ignore-certificate-errors')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-extensions')
+        options.add_argument('--disable-gpu')
+        
+        driver = webdriver.Chrome(options=options)
+        driver.set_page_load_timeout(90)
 
         driver.set_window_size(1920, 1080)
         wait = WebDriverWait(driver, 30)
@@ -550,16 +553,18 @@ def run_part_1_salesforce(username, password):
 
 def run_part_2(username, password, task_name):
     try:
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-
-        # Automatically manage ChromeDriver using webdriver-manager
-        service = Service(ChromeDriverManager().install())
-        # Set window size to typical laptop resolution
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-
+        # Set up the Selenium WebDriver
+        options = webdriver.ChromeOptions()
+        options.add_argument('--no-sandbox')
+        options.add_argument('--headless')
+        options.add_argument('--ignore-certificate-errors')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-extensions')
+        options.add_argument('--disable-gpu')
+        
+        driver = webdriver.Chrome(options=options)
+        driver.set_page_load_timeout(90)
+        
         driver.set_window_size(1920, 1080)
         wait = WebDriverWait(driver, 30)
 
