@@ -26,6 +26,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
 
+# Import for Chrome service
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+
 # Load environment variables from .env file (if using)
 load_dotenv()
 
@@ -412,7 +416,11 @@ def run_part_1_snowflake(username, password):
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
 
-        driver = webdriver.Chrome(options=chrome_options)
+        # Automatically manage ChromeDriver using webdriver-manager
+        service = Service(ChromeDriverManager().install())
+        # Set window size to typical laptop resolution
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+
         driver.set_window_size(1920, 1080)
         wait = WebDriverWait(driver, 30)
 
@@ -476,7 +484,11 @@ def run_part_1_salesforce(username, password):
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
 
-        driver = webdriver.Chrome(options=chrome_options)
+        # Automatically manage ChromeDriver using webdriver-manager
+        service = Service(ChromeDriverManager().install())
+        # Set window size to typical laptop resolution
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+
         driver.set_window_size(1920, 1080)
         wait = WebDriverWait(driver, 30)
 
@@ -543,7 +555,11 @@ def run_part_2(username, password, task_name):
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
 
-        driver = webdriver.Chrome(options=chrome_options)
+        # Automatically manage ChromeDriver using webdriver-manager
+        service = Service(ChromeDriverManager().install())
+        # Set window size to typical laptop resolution
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+
         driver.set_window_size(1920, 1080)
         wait = WebDriverWait(driver, 30)
 
