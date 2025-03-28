@@ -9,9 +9,15 @@ from PIL import Image
 import io
 import numpy as np
 import ast
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from dotenv import load_dotenv
+import uuid
 
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
+import matplotlib.pyplot as plt
+import io
+import base64
 
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
@@ -28,6 +34,7 @@ import time
 
 # Import for Chrome service
 from selenium.webdriver.chrome.service import Service
+from fastapi.staticfiles import StaticFiles
 # from webdriver_manager.chrome import ChromeDriverManager
 
 # Load environment variables from .env file (if using)
@@ -644,8 +651,8 @@ async def upload_to_snowflake(credentials: Credentials):
         part1_result = run_part_1_snowflake(credentials.username, credentials.password)
         if part1_result["status"] == "Success":
             print("Part 1 success")
-            part2_result = run_part_2(credentials.username, credentials.password, credentials.task_name)
-            return {"part1_status": "Success", "part2_status": part2_result}
+            # part2_result = run_part_2(credentials.username, credentials.password, credentials.task_name)
+            return {"part1_status": "Success"}
         else:
             raise HTTPException(status_code=500, detail="Part 1 failed")
     except HTTPException as e:
@@ -660,11 +667,143 @@ async def upload_to_salesforce(credentials: Credentials):
         
         if part1_result["status"] == "Success":
             print("Part 1 success")
-            part2_result = run_part_2(credentials.username, credentials.password, credentials.task_name)
-            return {"part1_status": "Success", "part2_status": part2_result}
+            # part2_result = run_part_2(credentials.username, credentials.password, credentials.task_name)
+            return {"part1_status": "Success"}
         else:
             raise HTTPException(status_code=500, detail="Part 1 failed")
     except HTTPException as e:
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+# --- Plot Generation ---
+# Create a directory for static images
+IMAGE_SAVE_DIR = "static/graphs"
+os.makedirs(IMAGE_SAVE_DIR, exist_ok=True)
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+genai.configure(api_key=GOOGLE_API_KEY_V2)
+model = genai.GenerativeModel(model_name="gemini-1.5-flash")
+
+# Snowflake connection parameters
+def get_snowflake_connection():
+    return snowflake.connector.connect(
+        user="GODCARES",
+        password="meowCrack it@1011", 
+        account="UOKKATU-VK33181"
+    )
+
+def plain_query_snowflake(query):
+    """Execute a SQL query and return results."""
+    conn = get_snowflake_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(query)
+            return cur.fetchall()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database query error: {e}")
+    finally:
+        conn.close()
+
+@app.get("/healthcare-analysis")
+async def generate_healthcare_graphs():
+    # Queries
+    queries = [
+        "SELECT * FROM COMPANY_PHARMACY.DETAIL.PRESCRIPTIONS;",
+        "SELECT * FROM COMPANY_PHARMACY.DETAIL.HOSPITAL_BEDS;",
+        "SELECT * FROM COMPANY_PHARMACY.DETAIL.MEDICATIONS;"
+    ]
+    
+    # Fetch data
+    data_sets = []
+    for query in queries:
+        data_sets.append(plain_query_snowflake(query))
+    
+    # Prepare data for LLM
+    formatted_data = ["\n".join([str(row) for row in dataset]) for dataset in data_sets]
+    
+    # Generate questions
+    prompt_questions = f"""
+    IMAGINE YOU ARE A DATA ANALYST WITH EXPERTISE IN HEALTHCARE DATA ANALYTICS.
+
+    Based on the provided data, generate **6 important analytical questions** that:
+    - Can be answered using the given data
+    - Have definitive numerical or categorical answers
+    - Can be visualized with a graph using matplotlib
+
+    STRICT RULES:
+    1. ONLY output **six** questions, each on a **new line**.
+    2. Do NOT include explanations, context, or unnecessary text. Just the questions.
+
+    Data for analysis:
+    1. Prescription Data: {formatted_data[0]}
+    2. Hospital Bed Data: {formatted_data[1]}
+    3. Medication Inventory Data: {formatted_data[2]}
+    """
+
+    # Generate questions
+    response_questions = model.generate_content(prompt_questions)
+    questions = response_questions.text.strip().split("\n")
+    
+    # Store graph details
+    graph_details = []
+    
+    # Generate graphs for each question
+    print(len(questions))
+    for idx, question in enumerate(questions, 1):
+        prompt_code = f"""
+        Given the following healthcare dataset, generate a Python script using **matplotlib** to visualize the answer to the question below.
+
+        QUESTION: "{question}"
+
+        **Rules:**
+        - Output only **valid executable Python code** (No explanations, no markdown, just the raw code).
+        - Output code must not be wrapped in ``` ```.
+        - Output code should only be to represent only one matplotlib graph.
+        - Should not have a header name of Python.. Give output code such that if i copied the entire output it should run on my collab notbook.
+        - Use the given data directly and ensure code is written correctly without any errors.
+        - Ensure that every Matplotlib graph code includes a line to save the image using plt.savefig('name_of_graph').
+        - Ensure the script generates a meaningful and readable visualization.
+
+        Data:
+        1. Prescription Data: {formatted_data[0]}
+        2. Hospital Bed Data: {formatted_data[1]}
+        3. Medication Inventory Data: {formatted_data[2]}
+        """
+
+        # Generate graph code
+        response_code = model.generate_content(prompt_code)
+        generated_code = response_code.text.strip()
+
+        # Create a local namespace for execution
+        local_namespace = {
+            'plt': plt, 
+            'prescription_data': data_sets[0],
+            'hospital_bed_data': data_sets[1],
+            'medication_data': data_sets[2]
+        }
+
+        # Execute the code in a controlled environment
+        try:
+            exec(generated_code, {}, local_namespace)
+            
+            # Generate unique filename
+            filename = f"graph_{idx}_{uuid.uuid4().hex}.png"
+            filepath = os.path.join(IMAGE_SAVE_DIR, filename)
+            
+            # Save plot
+            plt.tight_layout()
+            plt.savefig(filepath)
+            plt.close()  # Close the plot to free memory
+            
+            # Store graph details
+            graph_details.append({
+                'question': question,
+                'image_path': f"/static/graphs/{filename}"
+            })
+        except Exception as e:
+            print(f"Error generating graph: {e}")
+    
+    return JSONResponse(content={"graphs": graph_details})
